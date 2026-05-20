@@ -3,118 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📅 맞춤 주기 루틴 알리미</title>
+    <title>📅 Routine Reminder</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; background-color: #f5f7fa; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h1, h2 { text-align: center; color: #4a5568; }
-        .date-banner { text-align: center; background: #edf2f7; padding: 10px; border-radius: 8px; font-weight: bold; margin-bottom: 20px; font-size: 1.1em; color: #2b6cb0; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; }
+        
+        /* 헤더 및 전체관리 아이콘 */
+        .header-area { display: flex; justify-content: center; align-items: center; position: relative; margin-bottom: 10px; }
+        h1, h2 { color: #4a5568; margin: 5px 0; }
+        .manage-icon { position: absolute; right: 0; font-size: 1.6em; cursor: pointer; background: none; border: none; padding: 5px; transition: 0.2s; }
+        .manage-icon:hover { transform: rotate(45deg); }
+
+        /* 캘린더 날짜 배너 */
+        .date-banner-wrap { text-align: center; margin-bottom: 20px; }
+        .date-banner-btn { background: #edf2f7; border: 2px solid #cbd5e0; padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 1.1em; color: #2b6cb0; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-family: inherit; }
+        .date-banner-btn:hover { background: #e2e8f0; }
+        #calendarInput { display: none; }
+
         .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
         label { font-weight: bold; margin-bottom: 5px; font-size: 0.9em; }
         input, select { padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 1em; background-color: white; }
         .time-select-group { display: flex; gap: 10px; }
         .time-select-group select { flex: 1; }
+        
         .btn { background: #3182ce; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 1em; cursor: pointer; font-weight: bold; transition: 0.2s; }
         .btn:hover { background: #2b6cb0; }
+        
+        /* Routine 리스트 및 완료 효과 */
         .routine-list { margin-top: 25px; border-top: 2px solid #e2e8f0; padding-top: 20px; }
-        .routine-item { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #4299e1; }
+        .routine-item { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #4299e1; cursor: pointer; transition: 0.2s; user-select: none; }
+        .routine-item:hover { background: #f1f5f9; }
+        .routine-item.completed { border-left-color: #a0aec0; background: #edf2f7; opacity: 0.6; }
+        .routine-item.completed .routine-name { text-decoration: line-through; color: #718096; }
+        
         .routine-info { display: flex; flex-direction: column; }
         .routine-time { font-size: 0.85em; color: #718096; }
         .routine-name { font-weight: bold; margin-top: 2px; }
-        .delete-btn { background: #e53e3e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85em; }
-        .delete-btn:hover { background: #c53030; }
         .no-data { text-align: center; color: #a0aec0; padding: 20px; }
         .sub-inputs { display: none; margin-top: 10px; }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; padding: 5px 0; }
+        .checkbox-group label { font-weight: normal; cursor: pointer; }
+
+        /* 팝업 모달창 스타일 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5em; cursor: pointer; border: none; background: none; }
+        .modal-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding: 10px 0; }
+        .delete-btn { background: #e53e3e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85em; }
+        .delete-btn:hover { background: #c53030; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>⏰ 루틴 알리미</h1>
-    <div id="dateBanner" class="date-banner">📅 날짜 로딩 중...</div>
+    <!-- 상단 헤더 및 관리 아이콘 -->
+    <div class="header-area">
+        <h1>⏰ Routine 알리미</h1>
+        <button class="manage-icon" onclick="openModal()" title="전체 Routine 관리">⚙️</button>
+    </div>
 
-    <!-- 1. 루틴 등록 양식 -->
-    <div class="form-group"><label>루틴 이름</label><input type="text" id="rName" placeholder="예: 영양제 먹기, 방 청소"></div>
+    <!-- 📅 클릭 시 캘린더가 열리는 날짜 선택 영역 -->
+    <div class="date-banner-wrap">
+        <button class="date-banner-btn" onclick="triggerCalendar()">
+            <span id="dateText">📅 날짜 로딩 중...</span> 👇
+        </button>
+        <input type="date" id="calendarInput" onchange="changeDisplayDate(this.value)">
+    </div>
+
+    <!-- 1. Routine 등록 양식 -->
+    <div class="form-group"><label>Routine 이름</label><input type="text" id="rName" placeholder="예: 영양제 먹기, 헬스장 가기"></div>
     
-    <!-- 🕒 텍스트 입력 대신 드롭다운 선택창으로 변경된 시간 설정 구역 -->
     <div class="form-group">
-        <label>알림 시간 설정</label>
+        <label>알림 시간</label>
         <div class="time-select-group">
-            <select id="rHour">
-                <!-- 00시부터 23시까지 자동 생성됩니다 -->
-            </select>
-            <select id="rMinute">
-                <!-- 00분부터 55분까지 5분 단위로 자동 생성됩니다 -->
-            </select>
+            <select id="rHour"></select>
+            <select id="rMinute"></select>
         </div>
+    </div>
+
+    <div class="form-group">
+        <label>Routine 시작 날짜 (언제부터 실행할까요?)</label>
+        <input type="date" id="rStartDate">
     </div>
 
     <div class="form-group">
         <label>반복 주기</label>
         <select id="rType" onchange="toggleSubInputs()">
-            <option value="매일">매일 반복</option>
-            <option value="요일">특정 요일 반복 (일주일에 한 번 등)</option>
-            <option value="일간격">며칠 간격 반복 (격일, 2주 등)</option>
-            <option value="월간격">한 달에 한 번 (매달 특정일)</option>
+            <option value="매일">매일</option>
+            <option value="격일">격일 (2일마다)</option>
+            <option value="1주일">1주일 주기</option>
+            <option value="2주일">2주일 주기</option>
+            <option value="한 달">한 달 주기</option>
+            <option value="2개월">2개월 주기</option>
+            <option value="3개월">3개월 주기</option>
+            <option value="6개월">6개월 주기</option>
+            <option value="1년">1년 주기</option>
+            <option value="요일선택">요일 선택 (직접 요일 지정)</option>
         </select>
     </div>
 
-    <!-- 주기에 따라 변하는 추가 입력창 -->
     <div id="subInputs" class="sub-inputs">
-        <div class="form-group" id="dayCheckboxes" style="display:none;">
-            <label>요일 선택</label>
-            <div>
-                <label><input type="checkbox" value="월">월</label>
-                <label><input type="checkbox" value="화">화</label>
-                <label><input type="checkbox" value="수">수</label>
-                <label><input type="checkbox" value="목">목</label>
-                <label><input type="checkbox" value="금">금</label>
-                <label><input type="checkbox" value="토">토</label>
-                <label><input type="checkbox" value="일">일</label>
+        <div class="form-group" id="dayCheckboxes">
+            <label>원하는 요일 선택 (중복 가능)</label>
+            <div class="checkbox-group">
+                <label><input type="checkbox" value="월"> 월</label>
+                <label><input type="checkbox" value="화"> 화</label>
+                <label><input type="checkbox" value="수"> 수</label>
+                <label><input type="checkbox" value="목"> 목</label>
+                <label><input type="checkbox" value="금"> 금</label>
+                <label><input type="checkbox" value="토"> 토</label>
+                <label><input type="checkbox" value="일"> 일</label>
             </div>
-        </div>
-        <div class="form-group" id="intervalInput" style="display:none;">
-            <label>간격 (일 단위, 격일은 2, 일주일은 7, 2주는 14)</label>
-            <input type="number" id="rInterval" min="1" value="2">
-            <label style="margin-top:5px;">시작 기준일</label>
-            <input type="date" id="rStartDate">
-        </div>
-        <div class="form-group" id="monthInput" style="display:none;">
-            <label>매달 반복할 날짜 (1~31일)</label>
-            <input type="number" id="rMonthDay" min="1" max="31" value="1">
         </div>
     </div>
 
-    <button class="btn" onclick="addRoutine()">✨ 루틴 등록하기</button>
+    <button class="btn" onclick="addRoutine()">✨ Routine 등록하기</button>
 
-    <!-- 2. 오늘 해야 할 루틴 목록 출력 -->
+    <!-- 2. 선택한 날짜의 Routine 목록 출력 -->
     <div class="routine-list">
-        <h2>📋 오늘의 루틴 목록</h2>
+        <h2 id="listTitle">📋 오늘의 Routine 목록</h2>
         <div id="todaysRoutines"></div>
+    </div>
+</div>
+
+<!-- ⚙️ 전체 Routine 관리 모달 팝업창 -->
+<div id="manageModal" class="modal">
+    <div class="modal-content">
+        <button class="close-btn" onclick="closeModal()">&times;</button>
+        <h2>🛠️ 전체 설정된 Routine 목록</h2>
+        <p style="font-size: 0.85em; color: #718096; text-align:center; margin-bottom:15px;">내가 등록한 모든 Routine입니다. 여기서 삭제할 수 있습니다.</p>
+        <div id="allRoutinesList"></div>
     </div>
 </div>
 
 <script>
     let routines = JSON.parse(localStorage.getItem('routines')) || [];
+    let completedLog = JSON.parse(localStorage.getItem('completedLog')) || {}; 
+    let currentTargetDate = new Date();
 
     window.onload = function() {
-        // 날짜 세팅
-        const today = new Date();
-        const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
-        document.getElementById('dateBanner').innerText = `📅 ${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')} (${weekdays[today.getDay()]}요일)`;
-        document.getElementById('rStartDate').value = today.toISOString().substring(0, 10);
-        
-        // 🕒 시/분 선택창 옵션 목록 생성
         initTimeSelects();
-        
-        renderTodayRoutines();
+        setTargetDate(new Date());
+        document.getElementById('rStartDate').value = new Date().toISOString().substring(0, 10);
     };
 
-    // 시(0~23)와 분(5분 단위) 선택 옵션을 채워넣는 함수
     function initTimeSelects() {
         const hourSelect = document.getElementById('rHour');
         const minuteSelect = document.getElementById('rMinute');
-
         for (let i = 0; i < 24; i++) {
             const h = String(i).padStart(2, '0');
             hourSelect.innerHTML += `<option value="${h}">${h}시</option>`;
@@ -125,42 +160,59 @@
         }
     }
 
+    function triggerCalendar() {
+        document.getElementById('calendarInput').showPicker(); 
+    }
+
+    function changeDisplayDate(dateVal) {
+        if(!dateVal) return;
+        setTargetDate(new Date(dateVal));
+    }
+
+    function setTargetDate(dateObj) {
+        currentTargetDate = dateObj;
+        const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
+        const y = currentTargetDate.getFullYear();
+        const m = String(currentTargetDate.getMonth() + 1).padStart(2, '0');
+        const d = String(currentTargetDate.getDate()).padStart(2, '0');
+        const w = weekdays[currentTargetDate.getDay()];
+        
+        const formattedDate = `${y}-${m}-${d}`;
+        document.getElementById('dateText').innerText = `📅 ${formattedDate} (${w}요일)`;
+
+        const todayStr = new Date().toISOString().substring(0, 10);
+        if(formattedDate === todayStr) {
+            document.getElementById('listTitle').innerText = "📋 오늘의 Routine 목록";
+        } else {
+            document.getElementById('listTitle').innerText = `📋 ${m}월 ${d}일의 Routine 목록`;
+        }
+
+        renderTodayRoutines();
+    }
+
     function toggleSubInputs() {
         const type = document.getElementById('rType').value;
-        const sub = document.getElementById('subInputs');
-        document.getElementById('dayCheckboxes').style.display = (type === '요일') ? 'block' : 'none';
-        document.getElementById('intervalInput').style.display = (type === '일간격') ? 'block' : 'none';
-        document.getElementById('monthInput').style.display = (type === '월간격') ? 'block' : 'none';
-        sub.style.display = (type === '매일') ? 'none' : 'block';
+        document.getElementById('subInputs').style.display = (type === '요일선택') ? 'block' : 'none';
     }
 
     function addRoutine() {
         const name = document.getElementById('rName').value;
-        // 시와 분 드롭다운 값을 합쳐서 시간 포맷(HH:MM) 생성
         const hour = document.getElementById('rHour').value;
         const minute = document.getElementById('rMinute').value;
         const time = `${hour}:${minute}`;
-        
+        const startDate = document.getElementById('rStartDate').value;
         const type = document.getElementById('rType').value;
 
-        if(!name) return alert("루틴 이름을 입력해 주세요!");
+        if(!name) return alert("Routine 이름을 입력해 주세요!");
+        if(!startDate) return alert("시작 날짜를 선택해 주세요!");
 
-        let value = null;
-        let startDate = null;
-
-        if (type === '요일') {
-            value = Array.from(document.querySelectorAll('#dayCheckboxes input:checked')).map(cb => cb.value);
-            if(value.length === 0) return alert("최소 하나의 요일을 선택해 주세요!");
-        } else if (type === '일간격') {
-            value = parseInt(document.getElementById('rInterval').value);
-            startDate = document.getElementById('rStartDate').value;
-            if(!value || !startDate) return alert("간격과 시작일을 정확히 입력해 주세요!");
-        } else if (type === '월간격') {
-            value = parseInt(document.getElementById('rMonthDay').value);
-            if(!value || value < 1 || value > 31) return alert("1일부터 31일 사이의 날짜를 입력해 주세요!");
+        let selectedDays = [];
+        if (type === '요일선택') {
+            selectedDays = Array.from(document.querySelectorAll('#dayCheckboxes input:checked')).map(cb => cb.value);
+            if(selectedDays.length === 0) return alert("최소 하나의 요일을 선택해 주세요!");
         }
 
-        routines.push({ id: Date.now(), name, time, type, value, startDate });
+        routines.push({ id: Date.now(), name, time, startDate, type, selectedDays });
         localStorage.setItem('routines', JSON.stringify(routines));
         
         document.getElementById('rName').value = '';
@@ -171,53 +223,134 @@
         routines = routines.filter(r => r.id !== id);
         localStorage.setItem('routines', JSON.stringify(routines));
         renderTodayRoutines();
+        renderAllRoutinesModal();
+    }
+
+    function toggleComplete(routineId) {
+        const dateKey = currentTargetDate.toISOString().substring(0, 10);
+        if (!completedLog[dateKey]) {
+            completedLog[dateKey] = [];
+        }
+
+        if (completedLog[dateKey].includes(routineId)) {
+            completedLog[dateKey] = completedLog[dateKey].filter(id => id !== routineId);
+        } else {
+            completedLog[dateKey].push(routineId);
+        }
+
+        localStorage.setItem('completedLog', JSON.stringify(completedLog));
+        renderTodayRoutines();
     }
 
     function renderTodayRoutines() {
         const listDiv = document.getElementById('todaysRoutines');
         listDiv.innerHTML = '';
 
-        const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        const targetDateOnly = new Date(currentTargetDate.getFullYear(), currentTargetDate.getMonth(), currentTargetDate.getDate());
         const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
-        const todayKr = weekdays[now.getDay()];
-        const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayKr = weekdays[targetDateOnly.getDay()];
+        const dateKey = currentTargetDate.toISOString().substring(0, 10);
 
         routines.sort((a,b) => a.time.localeCompare(b.time));
         let count = 0;
 
         routines.forEach(r => {
-            let isToday = false;
+            let isTargetDay = false;
+            const start = new Date(r.startDate);
+            const startDateOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+            
+            const diffTime = targetDateOnly - startDateOnly;
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
-            if (r.type === '매일') {
-                isToday = true;
-            } else if (r.type === '요일' && r.value.includes(todayKr)) {
-                isToday = true;
-            } else if (r.type === '일간격') {
-                const start = new Date(r.startDate);
-                const diffTime = todayDate - start;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                if (diffDays >= 0 && diffDays % r.value === 0) isToday = true;
-            } else if (r.type === '월간격' && now.getDate() === r.value) {
-                isToday = true;
+            if (diffDays >= 0) {
+                if (r.type === '매일') {
+                    isTargetDay = true;
+                } else if (r.type === '격일' && diffDays % 2 === 0) {
+                    isTargetDay = true;
+                } else if (r.type === '1주일' && diffDays % 7 === 0) {
+                    isTargetDay = true;
+                } else if (r.type === '2주일' && diffDays % 14 === 0) {
+                    isTargetDay = true;
+                } else if (r.type === '요일선택' && r.selectedDays.includes(todayKr)) {
+                    isTargetDay = true;
+                } else {
+                    const startYear = startDateOnly.getFullYear();
+                    const startMonth = startDateOnly.getMonth();
+                    const targetYear = targetDateOnly.getFullYear();
+                    const targetMonth = targetDateOnly.getMonth();
+                    const diffMonths = (targetYear - startYear) * 12 + (targetMonth - startMonth);
+
+                    if (targetDateOnly.getDate() === startDateOnly.getDate()) {
+                        if (r.type === '한 달' && diffMonths % 1 === 0) isTargetDay = true;
+                        else if (r.type === '2개월' && diffMonths % 2 === 0) isTargetDay = true;
+                        else if (r.type === '3개월' && diffMonths % 3 === 0) isTargetDay = true;
+                        else if (r.type === '6개월' && diffMonths % 6 === 0) isTargetDay = true;
+                        else if (r.type === '1년' && diffMonths % 12 === 0) isTargetDay = true;
+                    }
+                }
             }
 
-            if (isToday) {
+            if (isTargetDay) {
                 count++;
+                const isCompleted = completedLog[dateKey] && completedLog[dateKey].includes(r.id);
+                
                 listDiv.innerHTML += `
-                    <div class="routine-item">
+                    <div class="routine-item ${isCompleted ? 'completed' : ''}" onclick="toggleComplete(${r.id})">
                         <div class="routine-info">
                             <span class="routine-time">⏰ ${r.time} (${r.type})</span>
                             <span class="routine-name">${r.name}</span>
                         </div>
-                        <button class="delete-btn" onclick="deleteRoutine(${r.id})">삭제</button>
+                        <span style="font-size:1.2em;">${isCompleted ? '✅' : '⬜'}</span>
                     </div>
                 `;
             }
         });
 
         if (count === 0) {
-            listDiv.innerHTML = '<div class="no-data">🎉 오늘 예정된 루틴이 없습니다!</div>';
+            listDiv.innerHTML = '<div class="no-data">🎉 이 날은 예정된 Routine이 없습니다!</div>';
+        }
+    }
+
+    function openModal() {
+        document.getElementById('manageModal').style.display = 'flex';
+        renderAllRoutinesModal();
+    }
+
+    function closeModal() {
+        document.getElementById('manageModal').style.display = 'none';
+    }
+
+    function renderAllRoutinesModal() {
+        const modalList = document.getElementById('allRoutinesList');
+        modalList.innerHTML = '';
+
+        if(routines.length === 0) {
+            modalList.innerHTML = '<div class="no-data">등록된 Routine이 하나도 없습니다.</div>';
+            return;
+        }
+
+        routines.sort((a,b) => a.time.localeCompare(b.time));
+
+        routines.forEach(r => {
+            let periodText = r.type;
+            if(r.type === '요일선택') periodText = `요일(${r.selectedDays.join(',')})`;
+
+            modalList.innerHTML += `
+                <div class="modal-item">
+                    <div class="routine-info">
+                        <span class="routine-name" style="text-decoration:none; color:#333;">${r.name}</span>
+                        <span class="routine-time">⏱️ ${r.time} | 🔄 ${periodText} | 📅 시작: ${r.startDate}</span>
+                    </div>
+                    <button class="delete-btn" onclick="deleteRoutine(${r.id})">삭제</button>
+                </div>
+            `;
+        });
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById('manageModal');
+        if (event.target === modal) {
+            closeModal();
         }
     }
 </script>
