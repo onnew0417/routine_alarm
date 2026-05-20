@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📅 Routine Reminder</title>
     <style>
-        /* ✨ 전체 화이트 톤 마스터 스타일 */
+        /* 전체 화이트 톤 마스터 스타일 */
         body { font-family: 'Malgun Gothic', sans-serif; background-color: #ffffff; margin: 0; padding: 20px; color: #2d3748; }
         .container { max-width: 600px; margin: 40px auto; background: #ffffff; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04); position: relative; }
         
@@ -85,8 +85,8 @@
         <input type="date" id="calendarInput" onchange="changeDisplayDate(this.value)">
     </div>
 
-    <!-- 1. Routine 등록 양식 -->
-    <div class="form-group"><label>Routine 이름</label><input type="text" id="rName" placeholder="예: 영양제 먹기, 헬스장 가기"></div>
+    <!-- 1. Routine 등록 양식 (요청하신 Ex) 형태로 힌트 수정) -->
+    <div class="form-group"><label>Routine 이름</label><input type="text" id="rName" placeholder="Ex) 영양제 먹기, 헬스장 가기"></div>
     
     <div class="form-group">
         <label>Routine 시간</label>
@@ -95,7 +95,7 @@
                 <option value="오전">오전</option>
                 <option value="오후">오후</option>
             </select>
-            <input type="text" id="rTextTime" placeholder="예: 08:30 또는 9:00">
+            <input type="text" id="rTextTime" placeholder="Ex) 08:30 또는 9:00">
         </div>
     </div>
 
@@ -331,7 +331,8 @@
         });
 
         if (count === 0) {
-            listDiv.innerHTML = '<div class="no-data">🎉 이 날은 예정된 Routine이 없습니다!</div>';
+            /* 요청하신 대로 폭죽 이모티콘 제거 */
+            listDiv.innerHTML = '<div class="no-data">이 날은 예정된 Routine이 없습니다!</div>';
         }
     }
 
