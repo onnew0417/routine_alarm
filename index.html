@@ -11,7 +11,9 @@
         .date-banner { text-align: center; background: #edf2f7; padding: 10px; border-radius: 8px; font-weight: bold; margin-bottom: 20px; font-size: 1.1em; color: #2b6cb0; }
         .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
         label { font-weight: bold; margin-bottom: 5px; font-size: 0.9em; }
-        input, select { padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 1em; }
+        input, select { padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 1em; background-color: white; }
+        .time-select-group { display: flex; gap: 10px; }
+        .time-select-group select { flex: 1; }
         .btn { background: #3182ce; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 1em; cursor: pointer; font-weight: bold; transition: 0.2s; }
         .btn:hover { background: #2b6cb0; }
         .routine-list { margin-top: 25px; border-top: 2px solid #e2e8f0; padding-top: 20px; }
@@ -33,7 +35,20 @@
 
     <!-- 1. 루틴 등록 양식 -->
     <div class="form-group"><label>루틴 이름</label><input type="text" id="rName" placeholder="예: 영양제 먹기, 방 청소"></div>
-    <div class="form-group"><label>알림 시간</label><input type="time" id="rTime"></div>
+    
+    <!-- 🕒 텍스트 입력 대신 드롭다운 선택창으로 변경된 시간 설정 구역 -->
+    <div class="form-group">
+        <label>알림 시간 설정</label>
+        <div class="time-select-group">
+            <select id="rHour">
+                <!-- 00시부터 23시까지 자동 생성됩니다 -->
+            </select>
+            <select id="rMinute">
+                <!-- 00분부터 55분까지 5분 단위로 자동 생성됩니다 -->
+            </select>
+        </div>
+    </div>
+
     <div class="form-group">
         <label>반복 주기</label>
         <select id="rType" onchange="toggleSubInputs()">
@@ -80,19 +95,36 @@
 </div>
 
 <script>
-    // 브라우저를 껐다 켜도 데이터가 유지되도록 로컬 스토리지 사용
     let routines = JSON.parse(localStorage.getItem('routines')) || [];
 
-    // 화면 로딩 시 실행
     window.onload = function() {
+        // 날짜 세팅
         const today = new Date();
         const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
         document.getElementById('dateBanner').innerText = `📅 ${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')} (${weekdays[today.getDay()]}요일)`;
         document.getElementById('rStartDate').value = today.toISOString().substring(0, 10);
+        
+        // 🕒 시/분 선택창 옵션 목록 생성
+        initTimeSelects();
+        
         renderTodayRoutines();
     };
 
-    // 주기에 따라 서브 입력창 숨김/보임 처리
+    // 시(0~23)와 분(5분 단위) 선택 옵션을 채워넣는 함수
+    function initTimeSelects() {
+        const hourSelect = document.getElementById('rHour');
+        const minuteSelect = document.getElementById('rMinute');
+
+        for (let i = 0; i < 24; i++) {
+            const h = String(i).padStart(2, '0');
+            hourSelect.innerHTML += `<option value="${h}">${h}시</option>`;
+        }
+        for (let i = 0; i < 60; i += 5) {
+            const m = String(i).padStart(2, '0');
+            minuteSelect.innerHTML += `<option value="${m}">${m}분</option>`;
+        }
+    }
+
     function toggleSubInputs() {
         const type = document.getElementById('rType').value;
         const sub = document.getElementById('subInputs');
@@ -102,13 +134,16 @@
         sub.style.display = (type === '매일') ? 'none' : 'block';
     }
 
-    // 루틴 추가 기능
     function addRoutine() {
         const name = document.getElementById('rName').value;
-        const time = document.getElementById('rTime').value;
+        // 시와 분 드롭다운 값을 합쳐서 시간 포맷(HH:MM) 생성
+        const hour = document.getElementById('rHour').value;
+        const minute = document.getElementById('rMinute').value;
+        const time = `${hour}:${minute}`;
+        
         const type = document.getElementById('rType').value;
 
-        if(!name || !time) return alert("루틴 이름과 시간을 입력해 주세요!");
+        if(!name) return alert("루틴 이름을 입력해 주세요!");
 
         let value = null;
         let startDate = null;
@@ -128,19 +163,16 @@
         routines.push({ id: Date.now(), name, time, type, value, startDate });
         localStorage.setItem('routines', JSON.stringify(routines));
         
-        // 입력창 초기화 및 리프레시
         document.getElementById('rName').value = '';
         renderTodayRoutines();
     }
 
-    // 루틴 삭제 기능
     function deleteRoutine(id) {
         routines = routines.filter(r => r.id !== id);
         localStorage.setItem('routines', JSON.stringify(routines));
         renderTodayRoutines();
     }
 
-    // 오늘 조건에 맞는 루틴 필터링 후 화면에 띄우기
     function renderTodayRoutines() {
         const listDiv = document.getElementById('todaysRoutines');
         listDiv.innerHTML = '';
@@ -149,13 +181,9 @@
         const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
         const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
         const todayKr = weekdays[now.getDay()];
-
-        // 오늘 날짜 객체 (시간 제거)
         const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-        // 시간순 정렬
         routines.sort((a,b) => a.time.localeCompare(b.time));
-
         let count = 0;
 
         routines.forEach(r => {
