@@ -23,8 +23,11 @@
         .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
         label { font-weight: bold; margin-bottom: 5px; font-size: 0.9em; }
         input, select { padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 1em; background-color: white; }
-        .time-select-group { display: flex; gap: 10px; }
-        .time-select-group select { flex: 1; }
+        
+        /* ⏰ 오전/오후 및 직접 입력 시간 설정 구역 스타일 */
+        .time-input-group { display: flex; gap: 10px; }
+        .time-input-group select { width: 100px; }
+        .time-input-group input { flex: 1; }
         
         .btn { background: #3182ce; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 1em; cursor: pointer; font-weight: bold; transition: 0.2s; }
         .btn:hover { background: #2b6cb0; }
@@ -74,15 +77,19 @@
     <div class="form-group"><label>Routine 이름</label><input type="text" id="rName" placeholder="예: 영양제 먹기, 헬스장 가기"></div>
     
     <div class="form-group">
-        <label>알림 시간</label>
-        <div class="time-select-group">
-            <select id="rHour"></select>
-            <select id="rMinute"></select>
+        <label>Routine 시간</label>
+        <div class="time-input-group">
+            <select id="rAmPm">
+                <option value="오전">오전</option>
+                <option value="오후">오후</option>
+            </select>
+            <input type="text" id="rTextTime" placeholder="예: 08:30 또는 9:00">
         </div>
     </div>
 
+    <!-- ✏️ 요청하신 대로 깔끔하게 문구가 수정된 구역 -->
     <div class="form-group">
-        <label>Routine 시작 날짜 (언제부터 실행할까요?)</label>
+        <label>Routine 시작 날짜</label>
         <input type="date" id="rStartDate">
     </div>
 
@@ -142,23 +149,9 @@
     let currentTargetDate = new Date();
 
     window.onload = function() {
-        initTimeSelects();
         setTargetDate(new Date());
         document.getElementById('rStartDate').value = new Date().toISOString().substring(0, 10);
     };
-
-    function initTimeSelects() {
-        const hourSelect = document.getElementById('rHour');
-        const minuteSelect = document.getElementById('rMinute');
-        for (let i = 0; i < 24; i++) {
-            const h = String(i).padStart(2, '0');
-            hourSelect.innerHTML += `<option value="${h}">${h}시</option>`;
-        }
-        for (let i = 0; i < 60; i += 5) {
-            const m = String(i).padStart(2, '0');
-            minuteSelect.innerHTML += `<option value="${m}">${m}분</option>`;
-        }
-    }
 
     function triggerCalendar() {
         document.getElementById('calendarInput').showPicker(); 
@@ -195,15 +188,33 @@
         document.getElementById('subInputs').style.display = (type === '요일선택') ? 'block' : 'none';
     }
 
+    function parseTo24Hour(ampm, textTime) {
+        const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
+        const trimmed = textTime.trim().replace(' ', '');
+        
+        if (!timeRegex.test(trimmed)) return null;
+        
+        let [hour, minute] = trimmed.split(':').map(Number);
+        
+        if (ampm === '오후' && hour < 12) hour += 12;
+        if (ampm === '오전' && hour === 12) hour = 0;
+        
+        return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    }
+
     function addRoutine() {
         const name = document.getElementById('rName').value;
-        const hour = document.getElementById('rHour').value;
-        const minute = document.getElementById('rMinute').value;
-        const time = `${hour}:${minute}`;
+        const ampm = document.getElementById('rAmPm').value;
+        const textTime = document.getElementById('rTextTime').value;
         const startDate = document.getElementById('rStartDate').value;
         const type = document.getElementById('rType').value;
 
         if(!name) return alert("Routine 이름을 입력해 주세요!");
+        if(!textTime) return alert("Routine 시간을 입력해 주세요!");
+        
+        const time = parseTo24Hour(ampm, textTime);
+        if(!time) return alert("시간 형식이 올바르지 않습니다!\n예시와 같이 '08:30' 또는 '9:00' 형태로 입력해 주세요.");
+        
         if(!startDate) return alert("시작 날짜를 선택해 주세요!");
 
         let selectedDays = [];
@@ -212,10 +223,11 @@
             if(selectedDays.length === 0) return alert("최소 하나의 요일을 선택해 주세요!");
         }
 
-        routines.push({ id: Date.now(), name, time, startDate, type, selectedDays });
+        routines.push({ id: Date.now(), name, time, displayTime: `${ampm} ${textTime.trim()}`, startDate, type, selectedDays });
         localStorage.setItem('routines', JSON.stringify(routines));
         
         document.getElementById('rName').value = '';
+        document.getElementById('rTextTime').value = '';
         renderTodayRoutines();
     }
 
@@ -293,11 +305,12 @@
             if (isTargetDay) {
                 count++;
                 const isCompleted = completedLog[dateKey] && completedLog[dateKey].includes(r.id);
+                const displayTimeStr = r.displayTime ? r.displayTime : r.time;
                 
                 listDiv.innerHTML += `
                     <div class="routine-item ${isCompleted ? 'completed' : ''}" onclick="toggleComplete(${r.id})">
                         <div class="routine-info">
-                            <span class="routine-time">⏰ ${r.time} (${r.type})</span>
+                            <span class="routine-time">⏰ ${displayTimeStr} (${r.type})</span>
                             <span class="routine-name">${r.name}</span>
                         </div>
                         <span style="font-size:1.2em;">${isCompleted ? '✅' : '⬜'}</span>
@@ -334,12 +347,13 @@
         routines.forEach(r => {
             let periodText = r.type;
             if(r.type === '요일선택') periodText = `요일(${r.selectedDays.join(',')})`;
+            const displayTimeStr = r.displayTime ? r.displayTime : r.time;
 
             modalList.innerHTML += `
                 <div class="modal-item">
                     <div class="routine-info">
                         <span class="routine-name" style="text-decoration:none; color:#333;">${r.name}</span>
-                        <span class="routine-time">⏱️ ${r.time} | 🔄 ${periodText} | 📅 시작: ${r.startDate}</span>
+                        <span class="routine-time">⏱️ ${displayTimeStr} | 🔄 ${periodText} | 📅 시작: ${r.startDate}</span>
                     </div>
                     <button class="delete-btn" onclick="deleteRoutine(${r.id})">삭제</button>
                 </div>
