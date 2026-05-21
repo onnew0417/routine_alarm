@@ -80,7 +80,7 @@
         <div class="menu-grid">
             <button class="menu-item" onclick="switchView('viewList')"><span>📅 Today's Routine</span><span>➔</span></button>
             <button class="menu-item" onclick="prepareCreateView()"><span>✨ Routine 생성하기</span><span>➔</span></button>
-            <button class="menu-item" onclick="switchView('viewAllManage')"><span>🗂️ 나의 모든 Routine 관리</span><span>➔</span></button>
+            <button class="menu-item" onclick="switchView('viewAllManage')"><span>🗂️ 모든 Routine</span><span>➔</span></button>
             <button class="menu-item" onclick="switchView('viewReport')"><span>📊 월간 Routine 리포트</span><span>➔</span></button>
             <button class="menu-item" onclick="switchView('viewTemplate')"><span>💡 추천 Routine 보관함</span><span>➔</span></button>
         </div>
@@ -144,7 +144,7 @@
     <div id="viewAllManage" class="app-view">
         <div class="header-area">
             <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
-            <h1>나의 모든 Routine</h1>
+            <h1>모든 Routine</h1>
         </div>
         <div id="allManageItemsArea" style="margin-top:15px;"></div>
     </div>
@@ -156,7 +156,7 @@
             <h1>📊 월간 리포트</h1>
         </div>
         <div style="text-align:center; margin-bottom:15px; font-weight:bold; font-size:1.1em;">
-            <span id="reportMonthText">2024년 5월 달성 현황</span>
+            <span id="reportMonthText">달성 현황</span>
         </div>
         <div class="level-badge-zone" style="text-align:left; font-size:0.9em; line-height:1.6em;">
             👑 <b>이달의 가장 성실한 Routine:</b> <span id="bestRoutineText">없음</span>
