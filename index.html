@@ -36,7 +36,7 @@
         .time-checkbox-label { font-size: 0.85em; display: flex; align-items: center; gap: 4px; margin-top: 6px; cursor: pointer; }
         .btn { background: var(--primary); color: var(--bg-card); border: none; padding: 14px; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
         .routine-item { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 14px 18px; border-radius: 10px; margin-bottom: 12px; border: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
-        .routine-item.completed { opacity: 0.4; background: var(--bg-body); }
+        .routine-item.completed { opacity: 0.4; background: var(--bg-body); border-color: var(--text-muted); }
         .routine-item.completed .routine-name { text-decoration: line-through; color: var(--text-muted); }
         .routine-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
         .routine-time { font-size: 0.8em; color: var(--text-muted); font-weight: bold; margin-bottom: 2px; }
@@ -66,7 +66,6 @@
 <body>
 <div class="container">
 
-    <!-- ==================== [VIEW 1] MAIN MENU ==================== -->
     <div id="viewMenu" class="app-view active">
         <div class="header-area">
             <h1>Routine Reminder</h1>
@@ -87,7 +86,6 @@
         </div>
     </div>
 
-    <!-- ==================== [VIEW 2] TODAY'S ROUTINE ==================== -->
     <div id="viewList" class="app-view">
         <div class="header-area">
             <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
@@ -103,7 +101,6 @@
         </div>
     </div>
 
-    <!-- ==================== [VIEW 3] CREATE / EDIT FORM ==================== -->
     <div id="viewCreate" class="app-view">
         <div class="header-area">
             <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
@@ -141,7 +138,6 @@
         <button class="btn" id="submitBtn" onclick="saveRoutineAction()">Routine 등록하기</button>
     </div>
 
-    <!-- ==================== [VIEW 4] MY ALL ROUTINES ==================== -->
     <div id="viewAllManage" class="app-view">
         <div class="header-area">
             <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
@@ -150,7 +146,6 @@
         <div id="allManageItemsArea" style="margin-top:15px;"></div>
     </div>
 
-    <!-- ==================== [VIEW 5] MONTHLY REPORT ==================== -->
     <div id="viewReport" class="app-view">
         <div class="header-area">
             <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
@@ -165,7 +160,6 @@
         <div class="report-grid" id="reportCalendarGrid"></div>
     </div>
 
-    <!-- ==================== [VIEW 6] ROUTINE TEMPLATE ==================== -->
     <div id="viewTemplate" class="app-view">
         <div class="header-area">
             <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
@@ -322,13 +316,13 @@
     }
 
     function isRoutineOnDate(routine, targetDateStr) {
-        const start = new Date(routine.startDate);
-        const target = new Date(targetDateStr);
+        if (!routine.startDate || !targetDateStr) return false;
+        
+        const start = new Date(routine.startDate + 'T00:00:00');
+        const target = new Date(targetDateStr + 'T00:00:00');
         if (target < start) return false;
         
-        start.setHours(0,0,0,0);
-        target.setHours(0,0,0,0);
-        const diffDays = Math.floor((target - start) / (1000 * 60 * 60 * 24));
+        const diffDays = Math.round((target - start) / (1000 * 60 * 60 * 24));
         
         switch(routine.type) {
             case '매일': return true;
@@ -360,7 +354,9 @@
         
         saveData();
         renderDisplay();
-        renderAllManageView();
+        if (document.getElementById('viewAllManage').classList.contains('active')) {
+            renderAllManageView();
+        }
     }
 
     function saveData() {
@@ -370,7 +366,7 @@
 
     function renderDisplay() {
         const days = ['일', '월', '화', '수', '목', '금', '토'];
-        const d = new Date(currentDisplayDate);
+        const d = new Date(currentDisplayDate + 'T00:00:00');
         document.getElementById('dateText').innerText = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
         
         const area = document.getElementById('routineItemsArea');
