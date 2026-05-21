@@ -44,7 +44,7 @@
         .time-input-group input { flex: 1; }
         .time-checkbox-label { font-size: 0.85em; color: #4a5568; display: flex; align-items: center; gap: 4px; cursor: pointer; margin-top: 6px; user-select: none; }
         
-        /* 등록 버튼 */
+        /* 등록/수정 버튼 */
         .btn { background: #1a202c; color: #ffffff; border: none; padding: 14px; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: bold; transition: 0.2s; margin-top: 10px; }
         .btn:hover { background: #2d3748; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         
@@ -58,9 +58,9 @@
         .routine-item.completed .routine-name { text-decoration: line-through; color: #a0aec0; }
         .routine-item.completed .routine-time { color: #cbd5e0; }
         
-        .routine-info { display: flex; flex-direction: column; flex: 1; }
+        .routine-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
         .routine-time { font-size: 0.8em; color: #a0aec0; font-weight: bold; margin-bottom: 2px; }
-        .routine-name { font-weight: 600; color: #2d3748; font-size: 1em; }
+        .routine-name { font-weight: 600; color: #2d3748; font-size: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
         /* 메인화면 바로 삭제 버튼 스타일 */
         .inline-delete-btn { background: none; border: none; font-size: 1.1em; cursor: pointer; padding: 8px; opacity: 0.4; transition: 0.2s; border-radius: 6px; }
@@ -72,10 +72,14 @@
         .checkbox-group { display: flex; flex-wrap: wrap; gap: 12px; padding: 5px 0; }
         .checkbox-group label { font-weight: 600; color: #4a5568; cursor: pointer; display: flex; align-items: center; gap: 4px; }
 
-        /* 📋 모든 루틴 관리 화면 전용 스타일 */
+        /* 📋 모든 Routine 관리 화면 전용 스타일 */
         .manage-item { display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; margin-bottom: 12px; background: #ffffff; }
-        .delete-btn { background: #ffffff; color: #e53e3e; border: 1px solid #fed7d7; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: bold; transition: 0.2s; }
-        .delete-btn:hover { background: #fff5f5; border-color: #e53e3e; }
+        .manage-actions { display: flex; gap: 6px; }
+        .action-btn { background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: bold; transition: 0.2s; }
+        .action-btn.edit { color: #3182ce; border-color: #bee3f8; }
+        .action-btn.edit:hover { background: #ebf8ff; border-color: #3182ce; }
+        .action-btn.delete { color: #e53e3e; border-color: #fed7d7; }
+        .action-btn.delete:hover { background: #fff5f5; border-color: #e53e3e; }
 
         /* 화면 가리기용 제어 클래스 */
         .app-view { display: none; }
@@ -93,21 +97,21 @@
         </div>
         <div class="menu-grid">
             <button class="menu-item" onclick="switchView('viewList')">
-                <span>📅 오늘 루틴 바로가기</span>
+                <span>📅 Today's Routine</span>
                 <span class="icon">➔</span>
             </button>
-            <button class="menu-item" onclick="switchView('viewCreate')">
-                <span>✨ 루틴 생성하기</span>
+            <button class="menu-item" onclick="prepareCreateView()">
+                <span>✨ Routine 생성하기</span>
                 <span class="icon">➔</span>
             </button>
             <button class="menu-item" onclick="switchView('viewAllManage')">
-                <span>🗂️ 나의 모든 루틴 관리</span>
+                <span>🗂️ 나의 모든 Routine 관리</span>
                 <span class="icon">➔</span>
             </button>
         </div>
     </div>
 
-    <!-- ==================== [VIEW 2] 루틴 리스트 출력 화면 ==================== -->
+    <!-- ==================== [VIEW 2] Routine 리스트 출력 화면 ==================== -->
     <div id="viewList" class="app-view">
         <div class="header-area">
             <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
@@ -128,11 +132,11 @@
         </div>
     </div>
 
-    <!-- ==================== [VIEW 3] 루틴 생성 및 수정 양식 화면 ==================== -->
+    <!-- ==================== [VIEW 3] Routine 생성 및 수정 양식 화면 ==================== -->
     <div id="viewCreate" class="app-view">
         <div class="header-area">
             <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
-            <h1>루틴 생성하기</h1>
+            <h1 id="createViewTitle">Routine 생성하기</h1>
         </div>
         
         <div class="form-group"><label>Routine 이름</label><input type="text" id="rName" placeholder="Ex) 영양제 먹기, 헬스장 가기"></div>
@@ -187,14 +191,14 @@
             </div>
         </div>
 
-        <button class="btn" style="width: 100%;" onclick="addRoutine()">Routine 등록하기</button>
+        <button class="btn" style="width: 100%;" id="submitBtn" onclick="saveRoutineAction()">Routine 등록하기</button>
     </div>
 
-    <!-- ==================== [VIEW 4] 나의 모든 루틴 관리 화면 ==================== -->
+    <!-- ==================== [VIEW 4] 나의 모든 Routine 관리 화면 ==================== -->
     <div id="viewAllManage" class="app-view">
         <div class="header-area">
             <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
-            <h1>나의 모든 루틴</h1>
+            <h1>나의 모든 Routine</h1>
         </div>
         <div id="allManageItemsArea" style="margin-top: 15px;"></div>
     </div>
@@ -206,6 +210,7 @@
     let routines = JSON.parse(localStorage.getItem('routines')) || [];
     let completedDates = JSON.parse(localStorage.getItem('completedDates')) || {}; 
     let currentDisplayDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    let editingRoutineId = null; // 수정 모드 전환용 추적 식별자 변수
 
     window.onload = function() {
         initDefaultDates();
@@ -228,6 +233,24 @@
         // 화면 전환 시 최신 데이터 실시간 동기화 리렌더링
         if(viewId === 'viewList') renderDisplay();
         if(viewId === 'viewAllManage') renderAllManageView();
+    }
+
+    // 순수 생성 모드로 갈 때 폼 타이틀 및 인풋 클리어링
+    function prepareCreateView() {
+        editingRoutineId = null;
+        document.getElementById('createViewTitle').innerText = 'Routine 생성하기';
+        document.getElementById('submitBtn').innerText = 'Routine 등록하기';
+        
+        // 입력 폼 초기화
+        document.getElementById('rName').value = '';
+        document.getElementById('rTextTime').value = '';
+        document.getElementById('noTimeCheck').checked = false;
+        toggleTimeInput(false);
+        document.getElementById('rType').value = '매일';
+        toggleSubInputs();
+        initDefaultDates();
+        
+        switchView('viewCreate');
     }
 
     // --- 캘린더 및 배너 제어 ---
@@ -256,8 +279,8 @@
         }
     }
 
-    // --- 루틴 등록 비즈니스 로직 ---
-    function addRoutine() {
+    // --- Routine 저장 처리 분기 연산 (등록 vs 수정) ---
+    function saveRoutineAction() {
         const name = document.getElementById('rName').value.trim();
         const isNoTime = document.getElementById('noTimeCheck').checked;
         const ampm = isNoTime ? '' : document.getElementById('rAmPm').value;
@@ -265,8 +288,8 @@
         const startDate = document.getElementById('rStartDate').value;
         const type = document.getElementById('rType').value;
 
-        if (!name) return alert('루틴 이름을 입력해주세요.');
-        if (!isNoTime && !textTime) return alert('루틴 시간을 입력해주세요.');
+        if (!name) return alert('Routine 이름을 입력해주세요.');
+        if (!isNoTime && !textTime) return alert('Routine 시간을 입력해주세요.');
         if (!startDate) return alert('시작 날짜를 선택해주세요.');
 
         let selectedDays = [];
@@ -276,32 +299,73 @@
             if (selectedDays.length === 0) return alert('최소 하나 이상의 요일을 선택해주세요.');
         }
 
-        const newRoutine = {
-            id: 'rt_' + Date.now(),
-            name: name,
-            isNoTime: isNoTime,
-            ampm: ampm,
-            time: textTime,
-            startDate: startDate,
-            type: type,
-            days: selectedDays
-        };
+        if (editingRoutineId) {
+            // [수정 모드] 기존 Routine 정보 매핑 덮어쓰기
+            const index = routines.findIndex(r => r.id === editingRoutineId);
+            if (index > -1) {
+                routines[index].name = name;
+                routines[index].isNoTime = isNoTime;
+                routines[index].ampm = ampm;
+                routines[index].time = textTime;
+                routines[index].startDate = startDate;
+                routines[index].type = type;
+                routines[index].days = selectedDays;
+                alert('Routine이 성공적으로 수정되었습니다.');
+            }
+        } else {
+            // [등록 모드] 신규 Routine 추가
+            const newRoutine = {
+                id: 'rt_' + Date.now(),
+                name: name,
+                isNoTime: isNoTime,
+                ampm: ampm,
+                time: textTime,
+                startDate: startDate,
+                type: type,
+                days: selectedDays
+            };
+            routines.push(newRoutine);
+            alert('새로운 Routine이 성공적으로 생성되었습니다!');
+        }
 
-        routines.push(newRoutine);
         saveData();
-        
-        // 폼 초기화
-        document.getElementById('rName').value = '';
-        document.getElementById('rTextTime').value = '';
-        document.getElementById('noTimeCheck').checked = false;
-        toggleTimeInput(false);
-        document.querySelectorAll('#dayCheckboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
-        
-        alert('새로운 루틴이 성공적으로 성공했습니다!');
-        switchView('viewMenu'); // 생성 후 메인 메뉴로 복귀
+        editingRoutineId = null; // 아이디 상태 리셋
+        switchView('viewMenu'); 
     }
 
-    // --- 루틴 날짜 매칭 알고리즘 ---
+    // --- Routine 수정 폼 로드 매핑 엔진 ---
+    function editRoutine(id) {
+        const target = routines.find(r => r.id === id);
+        if (!target) return;
+
+        editingRoutineId = id; // 전역 ID 설정
+        
+        // 폼 진입 전 타이틀 텍스트 구조 변경
+        document.getElementById('createViewTitle').innerText = 'Routine 수정하기';
+        document.getElementById('submitBtn').innerText = 'Routine 수정 완료';
+
+        // 기존 필드 데이터 바인딩
+        document.getElementById('rName').value = target.name;
+        document.getElementById('noTimeCheck').checked = target.isNoTime;
+        toggleTimeInput(target.isNoTime);
+        if (!target.isNoTime) {
+            document.getElementById('rAmPm').value = target.ampm;
+            document.getElementById('rTextTime').value = target.time;
+        }
+        document.getElementById('rStartDate').value = target.startDate;
+        document.getElementById('rType').value = target.type;
+        toggleSubInputs();
+
+        // 요일 컴포넌트 데이터 복원 체크 처리
+        document.querySelectorAll('#dayCheckboxes input[type="checkbox"]').forEach(cb => {
+            cb.checked = target.days.includes(cb.value);
+        });
+
+        // 뷰 이동 처리
+        switchView('viewCreate');
+    }
+
+    // --- Routine 날짜 매칭 알고리즘 ---
     function isRoutineOnDate(routine, targetDateStr) {
         const start = new Date(routine.startDate);
         const target = new Date(targetDateStr);
@@ -348,9 +412,9 @@
         renderDisplay();
     }
 
-    // --- 루틴 영구 삭제 기능 ---
+    // --- Routine 영구 삭제 기능 ---
     function deleteRoutine(id) {
-        if (!confirm('이 루틴을 정말 완전히 삭제하시겠습니까? 데이터가 초기화됩니다.')) return;
+        if (!confirm('이 Routine을 정말 완전히 삭제하시겠습니까? 관련 데이터가 초기화됩니다.')) return;
         routines = routines.filter(r => r.id !== id);
         saveData();
         renderDisplay();
@@ -362,7 +426,7 @@
         localStorage.setItem('completedDates', JSON.stringify(completedDates));
     }
 
-    // --- [화면 렌더링 1] 특정 날짜 선택 루틴 목록 리스트 ---
+    // --- [화면 렌더링 1] 특정 날짜 선택 Routine 목록 리스트 ---
     function renderDisplay() {
         const days = ['일', '월', '화', '수', '목', '금', '토'];
         const d = new Date(currentDisplayDate);
@@ -377,7 +441,7 @@
         const activeRoutines = routines.filter(r => isRoutineOnDate(r, currentDisplayDate));
 
         if (activeRoutines.length === 0) {
-            itemsArea.innerHTML = '<div class="no-data">지정된 Routine이 없습니다. 새로운 루틴을 등록해보세요!</div>';
+            itemsArea.innerHTML = '<div class="no-data">지정된 Routine이 없습니다. 새로운 Routine을 등록해보세요!</div>';
             return;
         }
 
@@ -401,20 +465,20 @@
                         <div class="routine-time">${timeDisplay}</div>
                         <div class="routine-name">${r.name}</div>
                     </div>
-                    <button class="inline-delete-btn" onclick="event.stopPropagation(); deleteRoutine('${r.id}')" title="루틴 즉시 삭제">🗑️</button>
+                    <button class="inline-delete-btn" onclick="event.stopPropagation(); deleteRoutine('${r.id}')" title="Routine 즉시 삭제">🗑️</button>
                 </div>
             `;
             itemsArea.insertAdjacentHTML('beforeend', itemHtml);
         });
     }
 
-    // --- [화면 렌더링 2] 나의 모든 루틴 관리 대시보드 리스트 ---
+    // --- [화면 렌더링 2] 나의 모든 Routine 관리 대시보드 리스트 ---
     function renderAllManageView() {
         const manageArea = document.getElementById('allManageItemsArea');
         manageArea.innerHTML = '';
 
         if (routines.length === 0) {
-            manageArea.innerHTML = '<div class="no-data">등록된 전체 루틴이 없습니다. 루틴 생성 메뉴에서 첫 루틴을 만들어 보세요!</div>';
+            manageArea.innerHTML = '<div class="no-data">등록된 전체 Routine이 없습니다. Routine 생성 메뉴에서 첫 Routine을 만들어 보세요!</div>';
             return;
         }
 
@@ -429,7 +493,10 @@
                         <div class="routine-time">[${infoText}] ${timeDisplay}</div>
                         <div class="routine-name" style="font-size:0.95em; font-weight:700;">${r.name}</div>
                     </div>
-                    <button class="delete-btn" onclick="deleteRoutine('${r.id}')">삭제</button>
+                    <div class="manage-actions">
+                        <button class="action-btn edit" onclick="editRoutine('${r.id}')">수정</button>
+                        <button class="action-btn delete" onclick="deleteRoutine('${r.id}')">삭제</button>
+                    </div>
                 </div>
             `;
             manageArea.insertAdjacentHTML('beforeend', itemHtml);
