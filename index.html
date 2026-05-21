@@ -73,7 +73,7 @@
 <div class="container">
     <!-- 상단 헤더 및 관리 아이콘 -->
     <div class="header-area">
-        <h1>Routine 알리미</h1>
+        <h1>Routine Reminder</h1>
         <button class="manage-icon" onclick="openModal()" title="전체 Routine 관리">⚙️</button>
     </div>
 
@@ -85,7 +85,7 @@
         <input type="date" id="calendarInput" onchange="changeDisplayDate(this.value)">
     </div>
 
-    <!-- 1. Routine 등록 양식 (요청하신 Ex) 형태로 힌트 수정) -->
+    <!-- 1. Routine 등록 양식 -->
     <div class="form-group"><label>Routine 이름</label><input type="text" id="rName" placeholder="Ex) 영양제 먹기, 헬스장 가기"></div>
     
     <div class="form-group">
@@ -140,244 +140,253 @@
     <!-- 2. 선택한 날짜의 Routine 목록 출력 -->
     <div class="routine-list">
         <h2 id="listTitle">오늘의 Routine 목록</h2>
-        <div id="todaysRoutines"></div>
+        <div id="routineItemsArea"></div>
     </div>
 </div>
 
-<!-- ⚙️ 전체 Routine 관리 모달 팝업창 -->
+<!-- 3. 전체 Routine 관리 모달 팝업 -->
 <div id="manageModal" class="modal">
     <div class="modal-content">
-        <button class="close-btn" onclick="closeModal()">&times;</button>
-        <h2>🛠️ 전체 설정된 Routine 목록</h2>
-        <p style="font-size: 0.85em; color: #a0aec0; text-align:center; margin-bottom:20px;">등록된 모든 Routine 리스트입니다.</p>
-        <div id="allRoutinesList"></div>
+        <button class="close-btn" onclick="closeModal()">×</button>
+        <h2 style="margin-bottom: 20px;">전체 Routine 관리</h2>
+        <div id="modalItemsArea"></div>
     </div>
 </div>
 
 <script>
+    // --- 글로벌 상태 관리 및 초기화 ---
     let routines = JSON.parse(localStorage.getItem('routines')) || [];
-    let completedLog = JSON.parse(localStorage.getItem('completedLog')) || {}; 
-    let currentTargetDate = new Date();
+    let completedDates = JSON.parse(localStorage.getItem('completedDates')) || {}; 
+    let currentDisplayDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     window.onload = function() {
-        setTargetDate(new Date());
-        document.getElementById('rStartDate').value = new Date().toISOString().substring(0, 10);
+        initDefaultDates();
+        renderDisplay();
     };
 
+    // 초기 기본 날짜 설정
+    function initDefaultDates() {
+        document.getElementById('calendarInput').value = currentDisplayDate;
+        document.getElementById('rStartDate').value = currentDisplayDate;
+    }
+
+    // --- 캘린더 및 배너 제어 ---
     function triggerCalendar() {
-        document.getElementById('calendarInput').showPicker(); 
+        document.getElementById('calendarInput').showPicker();
     }
 
-    function changeDisplayDate(dateVal) {
-        if(!dateVal) return;
-        setTargetDate(new Date(dateVal));
+    // 표시 날짜 변경 프로세스
+    function changeDisplayDate(val) {
+        if (!val) return;
+        currentDisplayDate = val;
+        renderDisplay();
     }
 
-    function setTargetDate(dateObj) {
-        currentTargetDate = dateObj;
-        const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
-        const y = currentTargetDate.getFullYear();
-        const m = String(currentTargetDate.getMonth() + 1).padStart(2, '0');
-        const d = String(currentTargetDate.getDate()).padStart(2, '0');
-        const w = weekdays[currentTargetDate.getDay()];
-        
-        const formattedDate = `${y}-${m}-${d}`;
-        document.getElementById('dateText').innerText = `📅 ${formattedDate} (${w}요일)`;
-
-        const todayStr = new Date().toISOString().substring(0, 10);
-        if(formattedDate === todayStr) {
-            document.getElementById('listTitle').innerText = "오늘의 Routine 목록";
-        } else {
-            document.getElementById('listTitle').innerText = `${m}월 ${d}일의 Routine 목록`;
-        }
-
-        renderTodayRoutines();
-    }
-
+    // --- UI 동적 변화 제어 ---
     function toggleSubInputs() {
         const type = document.getElementById('rType').value;
-        document.getElementById('subInputs').style.display = (type === '요일선택') ? 'block' : 'none';
+        const subInputs = document.getElementById('subInputs');
+        subInputs.style.display = (type === '요일선택') ? 'block' : 'none';
     }
 
-    function parseTo24Hour(ampm, textTime) {
-        const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
-        const trimmed = textTime.trim().replace(' ', '');
-        
-        if (!timeRegex.test(trimmed)) return null;
-        
-        let [hour, minute] = trimmed.split(':').map(Number);
-        
-        if (ampm === '오후' && hour < 12) hour += 12;
-        if (ampm === '오전' && hour === 12) hour = 0;
-        
-        return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-    }
-
+    // --- 루틴 등록 비즈니스 로직 ---
     function addRoutine() {
-        const name = document.getElementById('rName').value;
+        const name = document.getElementById('rName').value.trim();
         const ampm = document.getElementById('rAmPm').value;
-        const textTime = document.getElementById('rTextTime').value;
+        const textTime = document.getElementById('rTextTime').value.trim();
         const startDate = document.getElementById('rStartDate').value;
         const type = document.getElementById('rType').value;
 
-        if(!name) return alert("Routine 이름을 입력해 주세요!");
-        if(!textTime) return alert("Routine 시간을 입력해 주세요!");
-        
-        const time = parseTo24Hour(ampm, textTime);
-        if(!time) return alert("시간 형식이 올바르지 않습니다!\n'08:30' 형태로 입력해 주세요.");
-        
-        if(!startDate) return alert("시작 날짜를 선택해 주세요!");
+        if (!name) return alert('루틴 이름을 입력해주세요.');
+        if (!textTime) return alert('루틴 시간을 입력해주세요.');
+        if (!startDate) return alert('시작 날짜를 선택해주세요.');
 
+        // 요일 선택 시 체크된 배열 확보
         let selectedDays = [];
         if (type === '요일선택') {
-            selectedDays = Array.from(document.querySelectorAll('#dayCheckboxes input:checked')).map(cb => cb.value);
-            if(selectedDays.length === 0) return alert("최소 하나의 요일을 선택해 주세요!");
+            const checkboxes = document.querySelectorAll('#dayCheckboxes input[type="checkbox"]:checked');
+            selectedDays = Array.from(checkboxes).map(cb => cb.value);
+            if (selectedDays.length === 0) return alert('최소 하나 이상의 요일을 선택해주세요.');
         }
 
-        routines.push({ id: Date.now(), name, time, displayTime: `${ampm} ${textTime.trim()}`, startDate, type, selectedDays });
-        localStorage.setItem('routines', JSON.stringify(routines));
+        const newRoutine = {
+            id: 'rt_' + Date.now(),
+            name: name,
+            ampm: ampm,
+            time: textTime,
+            startDate: startDate,
+            type: type,
+            days: selectedDays
+        };
+
+        routines.push(newRoutine);
+        saveData();
         
+        // 폼 리셋
         document.getElementById('rName').value = '';
         document.getElementById('rTextTime').value = '';
-        renderTodayRoutines();
+        document.querySelectorAll('#dayCheckboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
+        
+        renderDisplay();
     }
 
-    function deleteRoutine(id) {
-        routines = routines.filter(r => r.id !== id);
-        localStorage.setItem('routines', JSON.stringify(routines));
-        renderTodayRoutines();
-        renderAllRoutinesModal();
+    // --- 루틴 날짜 매칭 핵심 계산 알고리즘 ---
+    function isRoutineOnDate(routine, targetDateStr) {
+        const start = new Date(routine.startDate);
+        const target = new Date(targetDateStr);
+        
+        // 시작일보다 이전 날짜면 루틴에서 제외
+        if (target < start) return false;
+
+        const diffTime = target.getTime() - start.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+        switch(routine.type) {
+            case '매일':
+                return true;
+            case '격일':
+                return diffDays % 2 === 0;
+            case '1주일':
+                return diffDays % 7 === 0;
+            case '2주일':
+                return diffDays % 14 === 0;
+            case '한 달':
+                return start.getDate() === target.getDate() || 
+                       (target.getDate() === new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate() && start.getDate() > target.getDate());
+            case '2개월':
+                return isMonthIntervalMatch(start, target, 2);
+            case '3개월':
+                return isMonthIntervalMatch(start, target, 3);
+            case '6개월':
+                return isMonthIntervalMatch(start, target, 6);
+            case '1년':
+                return start.getMonth() === target.getMonth() && start.getDate() === target.getDate();
+            case '요일선택':
+                const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+                const targetDayName = weekDays[target.getDay()];
+                return routine.days.includes(targetDayName);
+            default:
+                return false;
+        }
     }
 
+    function isMonthIntervalMatch(start, target, interval) {
+        const monthDiff = (target.getFullYear() - start.getFullYear()) * 12 + (target.getMonth() - start.getMonth());
+        if (monthDiff % interval !== 0) return false;
+        return start.getDate() === target.getDate() || 
+               (target.getDate() === new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate() && start.getDate() > target.getDate());
+    }
+
+    // --- 완료 토글 기능 ---
     function toggleComplete(routineId) {
-        const dateKey = currentTargetDate.toISOString().substring(0, 10);
-        if (!completedLog[dateKey]) {
-            completedLog[dateKey] = [];
+        if (!completedDates[currentDisplayDate]) {
+            completedDates[currentDisplayDate] = [];
         }
-
-        if (completedLog[dateKey].includes(routineId)) {
-            completedLog[dateKey] = completedLog[dateKey].filter(id => id !== routineId);
+        
+        const index = completedDates[currentDisplayDate].indexOf(routineId);
+        if (index > -1) {
+            completedDates[currentDisplayDate].splice(index, 1);
         } else {
-            completedLog[dateKey].push(routineId);
+            completedDates[currentDisplayDate].push(routineId);
         }
-
-        localStorage.setItem('completedLog', JSON.stringify(completedLog));
-        renderTodayRoutines();
+        saveData();
+        renderDisplay();
     }
 
-    function renderTodayRoutines() {
-        const listDiv = document.getElementById('todaysRoutines');
-        listDiv.innerHTML = '';
+    // --- 전체 루틴 삭제 기능 ---
+    function deleteRoutine(id) {
+        if (!confirm('이 루틴을 완전히 삭제하시겠습니까?')) return;
+        routines = routines.filter(r => r.id !== id);
+        saveData();
+        renderDisplay();
+        renderModal();
+    }
 
-        const targetDateOnly = new Date(currentTargetDate.getFullYear(), currentTargetDate.getMonth(), currentTargetDate.getDate());
-        const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
-        const todayKr = weekdays[targetDateOnly.getDay()];
-        const dateKey = currentTargetDate.toISOString().substring(0, 10);
+    // --- 로컬 스토리지 데이터 동기화 ---
+    function saveData() {
+        localStorage.setItem('routines', JSON.stringify(routines));
+        localStorage.setItem('completedDates', JSON.stringify(completedDates));
+    }
 
-        routines.sort((a,b) => a.time.localeCompare(b.time));
-        let count = 0;
+    // --- 메인 화면 렌더링 엔진 ---
+    function renderDisplay() {
+        // 상단 배너 날짜 표시 갱신
+        const days = ['일', '월', '화', '수', '목', '금', '토'];
+        const d = new Date(currentDisplayDate);
+        document.getElementById('dateText').innerText = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
 
-        routines.forEach(r => {
-            let isTargetDay = false;
-            const start = new Date(r.startDate);
-            const startDateOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-            
-            const diffTime = targetDateOnly - startDateOnly;
-            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+        // 리스트 타이틀 변경
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('listTitle').innerText = (currentDisplayDate === todayStr) ? "오늘의 Routine 목록" : "선택한 날의 Routine 목록";
 
-            if (diffDays >= 0) {
-                if (r.type === '매일') {
-                    isTargetDay = true;
-                } else if (r.type === '격일' && diffDays % 2 === 0) {
-                    isTargetDay = true;
-                } else if (r.type === '1주일' && diffDays % 7 === 0) {
-                    isTargetDay = true;
-                } else if (r.type === '2주일' && diffDays % 14 === 0) {
-                    isTargetDay = true;
-                } else if (r.type === '요일선택' && r.selectedDays.includes(todayKr)) {
-                    isTargetDay = true;
-                } else {
-                    const startYear = startDateOnly.getFullYear();
-                    const startMonth = startDateOnly.getMonth();
-                    const targetYear = targetDateOnly.getFullYear();
-                    const targetMonth = targetDateOnly.getMonth();
-                    const diffMonths = (targetYear - startYear) * 12 + (targetMonth - startMonth);
+        const itemsArea = document.getElementById('routineItemsArea');
+        itemsArea.innerHTML = '';
 
-                    if (targetDateOnly.getDate() === startDateOnly.getDate()) {
-                        if (r.type === '한 달' && diffMonths % 1 === 0) isTargetDay = true;
-                        else if (r.type === '2개월' && diffMonths % 2 === 0) isTargetDay = true;
-                        else if (r.type === '3개월' && diffMonths % 3 === 0) isTargetDay = true;
-                        else if (r.type === '6개월' && diffMonths % 6 === 0) isTargetDay = true;
-                        else if (r.type === '1년' && diffMonths % 12 === 0) isTargetDay = true;
-                    }
-                }
-            }
+        // 해당 날짜에 맞는 루틴 필터링
+        const activeRoutines = routines.filter(r => isRoutineOnDate(r, currentDisplayDate));
 
-            if (isTargetDay) {
-                count++;
-                const isCompleted = completedLog[dateKey] && completedLog[dateKey].includes(r.id);
-                const displayTimeStr = r.displayTime ? r.displayTime : r.time;
-                
-                listDiv.innerHTML += `
-                    <div class="routine-item ${isCompleted ? 'completed' : ''}" onclick="toggleComplete(${r.id})">
-                        <div class="routine-info">
-                            <span class="routine-time">⏰ ${displayTimeStr}</span>
-                            <span class="routine-name">${r.name}</span>
-                        </div>
-                        <span style="font-size:1.1em; color: ${isCompleted ? '#a0aec0' : '#e2e8f0'};">${isCompleted ? '✓' : '◯'}</span>
-                    </div>
-                `;
-            }
+        if (activeRoutines.length === 0) {
+            itemsArea.innerHTML = '<div class="no-data">지정된 Routine이 없습니다. 새로운 루틴을 등록해보세요!</div>';
+            return;
+        }
+
+        // 정렬: 오전 -> 오후 순서대로 시간 정렬
+        activeRoutines.sort((a, b) => {
+            if (a.ampm !== b.ampm) return a.ampm === '오전' ? -1 : 1;
+            return a.time.localeCompare(b.time);
         });
 
-        if (count === 0) {
-            /* 요청하신 대로 폭죽 이모티콘 제거 */
-            listDiv.innerHTML = '<div class="no-data">이 날은 예정된 Routine이 없습니다!</div>';
-        }
+        const doneList = completedDates[currentDisplayDate] || [];
+
+        activeRoutines.forEach(r => {
+            const isCompleted = doneList.includes(r.id);
+            const itemHtml = `
+                <div class="routine-item ${isCompleted ? 'completed' : ''}" onclick="toggleComplete('${r.id}')">
+                    <div class="routine-info">
+                        <div class="routine-time">${r.ampm} ${r.time}</div>
+                        <div class="routine-name">${r.name}</div>
+                    </div>
+                </div>
+            `;
+            itemsArea.insertAdjacentHTML('beforeend', itemHtml);
+        });
     }
 
+    // --- 모달 팝업 제어 및 렌더링 ---
     function openModal() {
         document.getElementById('manageModal').style.display = 'flex';
-        renderAllRoutinesModal();
+        renderModal();
     }
 
+    // 모달 닫기
     function closeModal() {
         document.getElementById('manageModal').style.display = 'none';
     }
 
-    function renderAllRoutinesModal() {
-        const modalList = document.getElementById('allRoutinesList');
-        modalList.innerHTML = '';
+    function renderModal() {
+        const modalArea = document.getElementById('modalItemsArea');
+        modalArea.innerHTML = '';
 
-        if(routines.length === 0) {
-            modalList.innerHTML = '<div class="no-data">등록된 Routine이 하나도 없습니다.</div>';
+        if (routines.length === 0) {
+            modalArea.innerHTML = '<div class="no-data">등록된 전체 루틴이 없습니다.</div>';
             return;
         }
 
-        routines.sort((a,b) => a.time.localeCompare(b.time));
-
         routines.forEach(r => {
-            let periodText = r.type;
-            if(r.type === '요일선택') periodText = `${r.selectedDays.join(',')}`;
-            const displayTimeStr = r.displayTime ? r.displayTime : r.time;
-
-            modalList.innerHTML += `
+            let infoText = r.type;
+            if (r.type === '요일선택') infoText = `요일(${r.days.join(',')})`;
+            
+            const itemHtml = `
                 <div class="modal-item">
                     <div class="routine-info">
-                        <span class="routine-name" style="font-size:0.95em;">${r.name}</span>
-                        <span class="routine-time" style="font-size:0.75em;">⏱️ ${displayTimeStr} | 🔄 ${periodText}</span>
+                        <div class="routine-time">[${infoText}] ${r.ampm} ${r.time}</div>
+                        <div class="routine-name" style="font-size:0.95em;">${r.name}</div>
                     </div>
-                    <button class="delete-btn" onclick="deleteRoutine(${r.id})">삭제</button>
+                    <button class="delete-btn" onclick="deleteRoutine('${r.id}')">삭제</button>
                 </div>
             `;
+            modalArea.insertAdjacentHTML('beforeend', itemHtml);
         });
-    }
-
-    window.onclick = function(event) {
-        const modal = document.getElementById('manageModal');
-        if (event.target === modal) {
-            closeModal();
-        }
     }
 </script>
 </body>
