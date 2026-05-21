@@ -81,6 +81,20 @@
         .action-btn.delete { color: #e53e3e; border-color: #fed7d7; }
         .action-btn.delete:hover { background: #fff5f5; border-color: #e53e3e; }
 
+        /* 📊 통계 리포트 전용 스타일 컴포넌트 */
+        .report-summary-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 25px; text-align: center; }
+        .report-score { font-size: 2.5em; font-weight: 800; color: #2b6cb0; margin: 5px 0; }
+        .progress-bar-bg { background: #e2e8f0; height: 12px; border-radius: 10px; overflow: hidden; margin-top: 10px; }
+        .progress-bar-fill { background: #3182ce; height: 100%; width: 0%; transition: width 0.5s ease-in-out; }
+        
+        /* 통계 캘린더 그리드 */
+        .report-grid-title { font-weight: 700; color: #4a5568; margin-bottom: 10px; font-size: 0.95em; }
+        .report-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+        .report-day-chip { border: 1px solid #e2e8f0; border-radius: 8px; aspect-ratio: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 0.85em; font-weight: bold; background: #ffffff; position: relative; }
+        .report-day-chip.perfect { background: #c6f6d5; border-color: #48bb78; color: #22543d; } /* 100% 달성 */
+        .report-day-chip.partial { background: #edf2f7; border-color: #cbd5e0; color: #4a5568; } /* 일부 수행 혹은 미완 */
+        .report-day-chip.empty { background: #ffffff; color: #e2e8f0; border-style: dashed; } /* Routine 없음 */
+
         /* 화면 가리기용 제어 클래스 */
         .app-view { display: none; }
         .app-view.active { display: block; }
@@ -106,6 +120,10 @@
             </button>
             <button class="menu-item" onclick="switchView('viewAllManage')">
                 <span>🗂️ 나의 모든 Routine 관리</span>
+                <span class="icon">➔</span>
+            </button>
+            <button class="menu-item" onclick="switchView('viewReport')">
+                <span>📊 Routine Report</span>
                 <span class="icon">➔</span>
             </button>
         </div>
@@ -203,6 +221,35 @@
         <div id="allManageItemsArea" style="margin-top: 15px;"></div>
     </div>
 
+    <!-- ==================== [VIEW 5] Routine 달성 통계 리포트 화면 ==================== -->
+    <div id="viewReport" class="app-view">
+        <div class="header-area">
+            <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
+            <h1>Routine Report</h1>
+        </div>
+        
+        <!-- 대시보드 박스 -->
+        <div class="report-summary-box">
+            <div style="font-size: 0.9em; font-weight: 700; color: #718096;">이번 달 나의 Routine 달성률</div>
+            <div class="report-score" id="reportPercent">0%</div>
+            <div style="font-size: 0.85em; color: #4a5568;" id="reportCounts">완료 0회 / 총 Routine 0회</div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="reportProgressBar"></div>
+            </div>
+        </div>
+
+        <!-- 캘린더 형태의 시각화 보드 -->
+        <div class="report-grid-title" id="reportGridMonthTitle">이번 달 일별 실천 현황</div>
+        <div class="report-calendar-grid" id="reportCalendarGridArea"></div>
+        
+        <!-- 범례 안내 -->
+        <div style="display: flex; gap: 15px; font-size: 0.8em; color: #718096; margin-top: 15px; justify-content: center;">
+            <div style="display: flex; align-items: center; gap: 4px;"><span style="width: 12px; height: 12px; background: #c6f6d5; border: 1px solid #48bb78; border-radius: 3px;"></span>100% 완료</div>
+            <div style="display: flex; align-items: center; gap: 4px;"><span style="width: 12px; height: 12px; background: #edf2f7; border: 1px solid #cbd5e0; border-radius: 3px;"></span>미완료 포함</div>
+            <div style="display: flex; align-items: center; gap: 4px;"><span style="width: 12px; height: 12px; background: #ffffff; border: 1px dashed #cbd5e0; border-radius: 3px;"></span>Routine 없음</div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -210,7 +257,7 @@
     let routines = JSON.parse(localStorage.getItem('routines')) || [];
     let completedDates = JSON.parse(localStorage.getItem('completedDates')) || {}; 
     let currentDisplayDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    let editingRoutineId = null; // 수정 모드 전환용 추적 식별자 변수
+    let editingRoutineId = null; 
 
     window.onload = function() {
         initDefaultDates();
@@ -230,18 +277,17 @@
         });
         document.getElementById(viewId).classList.add('active');
         
-        // 화면 전환 시 최신 데이터 실시간 동기화 리렌더링
+        // 화면 전환 시 최신 데이터 동기화 리렌더링 분기
         if(viewId === 'viewList') renderDisplay();
         if(viewId === 'viewAllManage') renderAllManageView();
+        if(viewId === 'viewReport') renderReportView();
     }
 
-    // 순수 생성 모드로 갈 때 폼 타이틀 및 인풋 클리어링
     function prepareCreateView() {
         editingRoutineId = null;
         document.getElementById('createViewTitle').innerText = 'Routine 생성하기';
         document.getElementById('submitBtn').innerText = 'Routine 등록하기';
         
-        // 입력 폼 초기화
         document.getElementById('rName').value = '';
         document.getElementById('rTextTime').value = '';
         document.getElementById('noTimeCheck').checked = false;
@@ -264,7 +310,7 @@
         renderDisplay();
     }
 
-    // --- UI 동적 제어 (요일 및 시간 옵션 비활성화) ---
+    // --- UI 동적 제어 ---
     function toggleSubInputs() {
         const type = document.getElementById('rType').value;
         const subInputs = document.getElementById('subInputs');
@@ -279,7 +325,7 @@
         }
     }
 
-    // --- Routine 저장 처리 분기 연산 (등록 vs 수정) ---
+    // --- Routine 저장 처리 (등록 / 수정) ---
     function saveRoutineAction() {
         const name = document.getElementById('rName').value.trim();
         const isNoTime = document.getElementById('noTimeCheck').checked;
@@ -300,7 +346,6 @@
         }
 
         if (editingRoutineId) {
-            // [수정 모드] 기존 Routine 정보 매핑 덮어쓰기
             const index = routines.findIndex(r => r.id === editingRoutineId);
             if (index > -1) {
                 routines[index].name = name;
@@ -313,7 +358,6 @@
                 alert('Routine이 성공적으로 수정되었습니다.');
             }
         } else {
-            // [등록 모드] 신규 Routine 추가
             const newRoutine = {
                 id: 'rt_' + Date.now(),
                 name: name,
@@ -329,22 +373,18 @@
         }
 
         saveData();
-        editingRoutineId = null; // 아이디 상태 리셋
+        editingRoutineId = null; 
         switchView('viewMenu'); 
     }
 
-    // --- Routine 수정 폼 로드 매핑 엔진 ---
     function editRoutine(id) {
         const target = routines.find(r => r.id === id);
         if (!target) return;
 
-        editingRoutineId = id; // 전역 ID 설정
-        
-        // 폼 진입 전 타이틀 텍스트 구조 변경
+        editingRoutineId = id; 
         document.getElementById('createViewTitle').innerText = 'Routine 수정하기';
         document.getElementById('submitBtn').innerText = 'Routine 수정 완료';
 
-        // 기존 필드 데이터 바인딩
         document.getElementById('rName').value = target.name;
         document.getElementById('noTimeCheck').checked = target.isNoTime;
         toggleTimeInput(target.isNoTime);
@@ -356,12 +396,10 @@
         document.getElementById('rType').value = target.type;
         toggleSubInputs();
 
-        // 요일 컴포넌트 데이터 복원 체크 처리
         document.querySelectorAll('#dayCheckboxes input[type="checkbox"]').forEach(cb => {
             cb.checked = target.days.includes(cb.value);
         });
 
-        // 뷰 이동 처리
         switchView('viewCreate');
     }
 
@@ -412,9 +450,9 @@
         renderDisplay();
     }
 
-    // --- Routine 영구 삭제 기능 ---
+    // --- Routine 삭제 기능 ---
     function deleteRoutine(id) {
-        if (!confirm('이 Routine을 정말 완전히 삭제하시겠습니까? 관련 데이터가 초기화됩니다.')) return;
+        if (!confirm('이 Routine을 정말 완전히 삭제하시겠습니까? 데이터가 초기화됩니다.')) return;
         routines = routines.filter(r => r.id !== id);
         saveData();
         renderDisplay();
@@ -445,7 +483,6 @@
             return;
         }
 
-        // 오전 -> 오후 -> 언제든(시간 미지정) 순으로 자동 정렬
         activeRoutines.sort((a, b) => {
             if (a.isNoTime && !b.isNoTime) return 1;
             if (!a.isNoTime && b.isNoTime) return -1;
@@ -468,40 +505,4 @@
                     <button class="inline-delete-btn" onclick="event.stopPropagation(); deleteRoutine('${r.id}')" title="Routine 즉시 삭제">🗑️</button>
                 </div>
             `;
-            itemsArea.insertAdjacentHTML('beforeend', itemHtml);
-        });
-    }
-
-    // --- [화면 렌더링 2] 나의 모든 Routine 관리 대시보드 리스트 ---
-    function renderAllManageView() {
-        const manageArea = document.getElementById('allManageItemsArea');
-        manageArea.innerHTML = '';
-
-        if (routines.length === 0) {
-            manageArea.innerHTML = '<div class="no-data">등록된 전체 Routine이 없습니다. Routine 생성 메뉴에서 첫 Routine을 만들어 보세요!</div>';
-            return;
-        }
-
-        routines.forEach(r => {
-            let infoText = r.type;
-            if (r.type === '요일선택') infoText = `요일(${r.days.join(',')})`;
-            const timeDisplay = r.isNoTime ? '시간 미지정' : `${r.ampm} ${r.time}`;
-            
-            const itemHtml = `
-                <div class="manage-item">
-                    <div class="routine-info">
-                        <div class="routine-time">[${infoText}] ${timeDisplay}</div>
-                        <div class="routine-name" style="font-size:0.95em; font-weight:700;">${r.name}</div>
-                    </div>
-                    <div class="manage-actions">
-                        <button class="action-btn edit" onclick="editRoutine('${r.id}')">수정</button>
-                        <button class="action-btn delete" onclick="deleteRoutine('${r.id}')">삭제</button>
-                    </div>
-                </div>
-            `;
-            manageArea.insertAdjacentHTML('beforeend', itemHtml);
-        });
-    }
-</script>
-</body>
-</html>
+            itemsArea.insertAdjacentHTML('beforeend
