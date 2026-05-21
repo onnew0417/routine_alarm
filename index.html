@@ -25,7 +25,7 @@
         .menu-item:hover { border-color: var(--text-muted); transform: translateY(-2px); }
         .date-banner-wrap { text-align: center; margin-bottom: 30px; }
         .date-banner-btn { background: var(--bg-card); border: 1px solid var(--border); padding: 10px 24px; border-radius: 30px; font-weight: bold; color: var(--text-main); cursor: pointer; }
-        #calendarInput { display: none; }
+        #calendarInput, #menuCalendarInput { display: none; }
         .form-group { margin-bottom: 20px; display: flex; flex-direction: column; }
         label { font-weight: 700; margin-bottom: 8px; font-size: 0.85em; color: var(--text-muted); text-transform: uppercase; }
         input, select { padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95em; background-color: var(--bg-card); color: var(--text-main); }
@@ -52,9 +52,6 @@
         .app-view { display: none; }
         .app-view.active { display: block; }
         .level-badge-zone { background: var(--bg-body); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border); text-align: center; }
-        .badge-list { display: flex; justify-content: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
-        .badge-icon { font-size: 1.5em; filter: grayscale(100%); opacity: 0.4; }
-        .badge-icon.unlocked { filter: grayscale(0%); opacity: 1; }
         .report-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 15px; }
         .report-day-head { text-align: center; font-size: 0.8em; font-weight: bold; color: var(--text-muted); }
         .report-cell { aspect-ratio: 1; border-radius: 6px; background: var(--bg-body); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.75em; font-weight: bold; position: relative; }
@@ -66,6 +63,7 @@
 <body>
 <div class="container">
 
+    <!-- ==================== [VIEW 1] MAIN MENU ==================== -->
     <div id="viewMenu" class="app-view active">
         <div class="header-area">
             <h1>Routine Reminder</h1>
@@ -73,12 +71,10 @@
                 <button onclick="toggleDarkMode()" style="background:none; border:none; font-size:1.3em; cursor:pointer;">🌓</button>
             </div>
         </div>
-        <div class="level-badge-zone">
-            <div style="font-weight:800; font-size:1.1em;">✨ MY LEVEL: <span id="txtLevel">1</span> (XP: <span id="txtXp">0</span>)</div>
-            <div class="badge-list" id="menuBadgeArea"></div>
-        </div>
         <div class="menu-grid">
             <button class="menu-item" onclick="switchView('viewList')"><span>📅 Today's Routine</span><span>➔</span></button>
+            <button class="menu-item" onclick="triggerMenuCalendar()"><span>🗓️ Calendar 날짜 조회</span><span>➔</span></button>
+            <input type="date" id="menuCalendarInput" onchange="selectMenuCalendarDate(this.value)">
             <button class="menu-item" onclick="prepareCreateView()"><span>✨ Routine 생성하기</span><span>➔</span></button>
             <button class="menu-item" onclick="switchView('viewAllManage')"><span>🗂️ 모든 Routine</span><span>➔</span></button>
             <button class="menu-item" onclick="switchView('viewReport')"><span>📊 월간 Routine 리포트</span><span>➔</span></button>
@@ -86,6 +82,7 @@
         </div>
     </div>
 
+    <!-- ==================== [VIEW 2] TODAY'S ROUTINE ==================== -->
     <div id="viewList" class="app-view">
         <div class="header-area">
             <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
@@ -101,6 +98,7 @@
         </div>
     </div>
 
+    <!-- ==================== [VIEW 3] CREATE / EDIT FORM ==================== -->
     <div id="viewCreate" class="app-view">
         <div class="header-area">
             <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
@@ -138,6 +136,7 @@
         <button class="btn" id="submitBtn" onclick="saveRoutineAction()">Routine 등록하기</button>
     </div>
 
+    <!-- ==================== [VIEW 4] MY ALL ROUTINES ==================== -->
     <div id="viewAllManage" class="app-view">
         <div class="header-area">
             <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
@@ -146,6 +145,7 @@
         <div id="allManageItemsArea" style="margin-top:15px;"></div>
     </div>
 
+    <!-- ==================== [VIEW 5] MONTHLY REPORT ==================== -->
     <div id="viewReport" class="app-view">
         <div class="header-area">
             <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
@@ -160,6 +160,7 @@
         <div class="report-grid" id="reportCalendarGrid"></div>
     </div>
 
+    <!-- ==================== [VIEW 6] ROUTINE TEMPLATE ==================== -->
     <div id="viewTemplate" class="app-view">
         <div class="header-area">
             <button class="home-nav-btn" onclick="switchView('viewMenu')">🏠 홈으로</button>
@@ -173,25 +174,25 @@
 <script>
     let routines = JSON.parse(localStorage.getItem('routines')) || [];
     let completedDates = JSON.parse(localStorage.getItem('completedDates')) || {}; 
+    let deletedDates = JSON.parse(localStorage.getItem('deletedDates')) || {}; // 그 날만 특정 루틴을 삭제하는 기록소
     let currentDisplayDate = new Date().toISOString().split('T')[0];
     let editingRoutineId = null;
 
     window.onload = function() {
         initDefaultDates();
         autoDarkTimer();
-        updateLevelSystem();
         renderDisplay();
     };
 
     function initDefaultDates() {
         document.getElementById('calendarInput').value = currentDisplayDate;
         document.getElementById('rStartDate').value = currentDisplayDate;
+        document.getElementById('menuCalendarInput').value = currentDisplayDate;
     }
 
     function switchView(viewId) {
         document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
-        if(viewId === 'viewMenu') updateLevelSystem();
         if(viewId === 'viewList') renderDisplay();
         if(viewId === 'viewAllManage') renderAllManageView();
         if(viewId === 'viewReport') renderReportView();
@@ -213,7 +214,20 @@
     }
 
     function triggerCalendar() { document.getElementById('calendarInput').showPicker(); }
-    function changeDisplayDate(val) { if (!val) return; currentDisplayDate = val; renderDisplay(); }
+    function triggerMenuCalendar() { document.getElementById('menuCalendarInput').showPicker(); }
+    
+    function changeDisplayDate(val) { 
+        if (!val) return; 
+        currentDisplayDate = val; 
+        renderDisplay(); 
+    }
+    
+    function selectMenuCalendarDate(val) {
+        if (!val) return;
+        currentDisplayDate = val;
+        document.getElementById('calendarInput').value = val;
+        switchView('viewList');
+    }
     
     function toggleSubInputs() {
         const type = document.getElementById('rType').value;
@@ -237,32 +251,6 @@
         if (isLocalDark || currentHour >= 21 || currentHour < 6) {
             document.body.classList.add('dark-mode');
         }
-    }
-
-    function updateLevelSystem() {
-        let totalCompletedCount = 0;
-        Object.keys(completedDates).forEach(date => {
-            totalCompletedCount += completedDates[date].length;
-        });
-        
-        let xp = totalCompletedCount * 10;
-        let level = Math.floor(xp / 100) + 1;
-        
-        document.getElementById('txtLevel').innerText = level;
-        document.getElementById('txtXp').innerText = xp;
-
-        const badges = [
-            { id: 'b1', icon: '🌱', name: '시작이 반', req: 10 },
-            { id: 'b2', icon: '🔥', name: '작심삼일 격파', req: 30 },
-            { id: 'b3', icon: '👑', name: 'Routine 마스터', req: 100 }
-        ];
-
-        const area = document.getElementById('menuBadgeArea');
-        area.innerHTML = '';
-        badges.forEach(b => {
-            const isUnlocked = xp >= b.req;
-            area.insertAdjacentHTML('beforeend', `<span class="badge-icon ${isUnlocked ? 'unlocked' : ''}" title="${b.name} (필수 XP:${b.req})">${b.icon}</span>`);
-        });
     }
 
     function saveRoutineAction() {
@@ -318,6 +306,11 @@
     function isRoutineOnDate(routine, targetDateStr) {
         if (!routine.startDate || !targetDateStr) return false;
         
+        // 특정 날짜의 부분 단발 삭제 기록 필터링
+        if (deletedDates[targetDateStr] && deletedDates[targetDateStr].includes(routine.id)) {
+            return false;
+        }
+        
         const start = new Date(routine.startDate + 'T00:00:00');
         const target = new Date(targetDateStr + 'T00:00:00');
         if (target < start) return false;
@@ -344,24 +337,37 @@
         renderDisplay();
     }
 
-    function deleteRoutine(id) {
-        if (!confirm('정말 삭제하시겠습니까?')) return;
+    // Today's Routine에서 '그 날만 삭제' 처리하는 기능
+    function deleteRoutineOnlyToday(id) {
+        if (!confirm('선택하신 날짜 목록에서만 이 Routine을 제외하시겠습니까?\n(원래 반복 주기 규칙은 다른 날에 그대로 적용됩니다.)')) return;
+        if (!deletedDates[currentDisplayDate]) {
+            deletedDates[currentDisplayDate] = [];
+        }
+        deletedDates[currentDisplayDate].push(id);
+        saveData();
+        renderDisplay();
+    }
+
+    // 모든 Routine 관리 화면에서 '영구 삭제' 처리하는 기능
+    function deleteRoutinePermanently(id) {
+        if (!confirm('이 Routine의 모든 규칙과 기록을 완전히 영구 삭제하시겠습니까?')) return;
         routines = routines.filter(r => r.id !== id);
         
         Object.keys(completedDates).forEach(date => {
             completedDates[date] = completedDates[date].filter(rid => rid !== id);
         });
+        Object.keys(deletedDates).forEach(date => {
+            deletedDates[date] = deletedDates[date].filter(rid => rid !== id);
+        });
         
         saveData();
-        renderDisplay();
-        if (document.getElementById('viewAllManage').classList.contains('active')) {
-            renderAllManageView();
-        }
+        renderAllManageView();
     }
 
     function saveData() {
         localStorage.setItem('routines', JSON.stringify(routines));
         localStorage.setItem('completedDates', JSON.stringify(completedDates));
+        localStorage.setItem('deletedDates', JSON.stringify(deletedDates));
     }
 
     function renderDisplay() {
@@ -389,7 +395,7 @@
                         <div class="routine-time">${r.isNoTime ? '언제든' : r.ampm + ' ' + r.time}</div>
                         <div class="routine-name">${r.name}</div>
                     </div>
-                    <button class="inline-delete-btn" onclick="event.stopPropagation(); deleteRoutine('${r.id}')">🗑️</button>
+                    <button class="inline-delete-btn" onclick="event.stopPropagation(); deleteRoutineOnlyToday('${r.id}')" title="이 날만 삭제">🗑️</button>
                 </div>
             `);
         });
@@ -408,7 +414,7 @@
                     </div>
                     <div class="manage-actions">
                         <button class="action-btn edit" onclick="editRoutine('${r.id}')">수정</button>
-                        <button class="action-btn delete" onclick="deleteRoutine('${r.id}')">삭제</button>
+                        <button class="action-btn delete" onclick="deleteRoutinePermanently('${r.id}')">삭제</button>
                     </div>
                 </div>
             `);
