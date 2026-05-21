@@ -35,13 +35,14 @@
         .time-input-group input { flex: 1; }
         .time-checkbox-label { font-size: 0.85em; display: flex; align-items: center; gap: 4px; margin-top: 6px; cursor: pointer; }
         .btn { background: var(--primary); color: var(--bg-card); border: none; padding: 14px; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
-        .routine-item { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 14px 18px; border-radius: 10px; margin-bottom: 12px; border: 1px solid var(--border); cursor: pointer; }
-        .routine-item.completed { opacity: 0.5; }
+        .routine-item { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 14px 18px; border-radius: 10px; margin-bottom: 12px; border: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
+        .routine-item.completed { opacity: 0.4; background: var(--bg-body); }
         .routine-item.completed .routine-name { text-decoration: line-through; color: var(--text-muted); }
         .routine-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
         .routine-time { font-size: 0.8em; color: var(--text-muted); font-weight: bold; margin-bottom: 2px; }
         .routine-name { font-weight: 600; font-size: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .inline-delete-btn { background: none; border: none; font-size: 1.1em; cursor: pointer; padding: 8px; opacity: 0.5; }
+        .inline-delete-btn { background: none; border: none; font-size: 1.1em; cursor: pointer; padding: 8px; opacity: 0.5; transition: 0.2s; }
+        .inline-delete-btn:hover { opacity: 1; color: #e53e3e; }
         .no-data { text-align: center; color: var(--text-muted); padding: 30px; }
         .sub-inputs { display: none; margin-top: 5px; background: var(--bg-body); padding: 15px; border-radius: 8px; border: 1px solid var(--border); }
         .checkbox-group { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -219,10 +220,12 @@
 
     function triggerCalendar() { document.getElementById('calendarInput').showPicker(); }
     function changeDisplayDate(val) { if (!val) return; currentDisplayDate = val; renderDisplay(); }
+    
     function toggleSubInputs() {
         const type = document.getElementById('rType').value;
         document.getElementById('subInputs').style.display = (type === '요일선택') ? 'block' : 'none';
     }
+    
     function toggleTimeInput(isNoTime) {
         document.getElementById('rAmPm').disabled = isNoTime;
         document.getElementById('rTextTime').disabled = isNoTime;
@@ -233,6 +236,7 @@
         document.body.classList.toggle('dark-mode');
         localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
     }
+    
     function autoDarkTimer() {
         const isLocalDark = localStorage.getItem('darkMode') === 'true';
         const currentHour = new Date().getHours();
@@ -321,7 +325,11 @@
         const start = new Date(routine.startDate);
         const target = new Date(targetDateStr);
         if (target < start) return false;
+        
+        start.setHours(0,0,0,0);
+        target.setHours(0,0,0,0);
         const diffDays = Math.floor((target - start) / (1000 * 60 * 60 * 24));
+        
         switch(routine.type) {
             case '매일': return true;
             case '격일': return diffDays % 2 === 0;
@@ -345,6 +353,11 @@
     function deleteRoutine(id) {
         if (!confirm('정말 삭제하시겠습니까?')) return;
         routines = routines.filter(r => r.id !== id);
+        
+        Object.keys(completedDates).forEach(date => {
+            completedDates[date] = completedDates[date].filter(rid => rid !== id);
+        });
+        
         saveData();
         renderDisplay();
         renderAllManageView();
@@ -459,13 +472,13 @@
                         <div style="font-weight:bold;">${t.name}</div>
                         <div style="font-size:0.8em; color:var(--text-muted);">${t.type} | ${t.ampm} ${t.time}</div>
                     </div>
-                    <button class="action-btn edit" onclick="addTemplate('${idx}')">추가</button>
+                    <button class="action-btn edit" onclick="addTemplateByIndex(${idx})">추가</button>
                 </div>
             `);
         });
     }
 
-    window.addTemplate = function(idx) {
+    window.addTemplateByIndex = function(idx) {
         const templates = [
             { name: '💧 아침 물 한 잔 마시기', type: '매일', ampm: '오전', time: '07:00' },
             { name: '🧘 하루 10분 스트레칭', type: '매일', ampm: '오후', time: '10:00' },
